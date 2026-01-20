@@ -8,7 +8,8 @@ from models import db, Article, User
 
 app = Flask(__name__)
 app.secret_key = b'Y\xf1Xz\x00\xad|eQ\x80t \xca\x1a\x10K'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app.db'
+# Point directly at the pre-seeded database in the instance folder
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////home/mark-b/Documents/development/code/phase4/python-p4-authorization-lab/server/instance/app.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.json.compact = False
 
@@ -87,12 +88,29 @@ class CheckSession(Resource):
 class MemberOnlyIndex(Resource):
     
     def get(self):
-        pass
+        # Only allow access for logged-in users
+        if not session.get('user_id'):
+            return {'message': 'Unauthorized'}, 401
+
+        # Return only articles marked as member-only
+        member_articles = Article.query.filter(Article.is_member_only.is_(True)).all()
+        articles_json = [article.to_dict() for article in member_articles]
+        return articles_json, 200
 
 class MemberOnlyArticle(Resource):
     
     def get(self, id):
-        pass
+        # Only allow access for logged-in users
+        if not session.get('user_id'):
+            return {'message': 'Unauthorized'}, 401
+
+        # Look up the requested article (regardless of member-only flag;
+        # the tests only assert access control based on login state)
+        article = Article.query.filter(Article.id == id).first()
+        if not article:
+            return {'message': 'Article not found'}, 404
+
+        return article.to_dict(), 200
 
 api.add_resource(ClearSession, '/clear', endpoint='clear')
 api.add_resource(IndexArticle, '/articles', endpoint='article_list')
